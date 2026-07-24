@@ -1,0 +1,33 @@
+CC = gcc
+AS = nasm
+LD = ld
+
+CFLAGS = -m64 -c -ffreestanding -O2 -Wall -Wextra -mno-red-zone -fstack-protector-all
+ASFLAGS = -f elf64
+LDFLAGS = -m elf_x86_64 -n -T linker.ld
+
+all: kernel.iso
+
+boot.o: boot.asm
+	$(AS) $(ASFLAGS) boot.asm -o boot.o
+
+kernel.o: kernel.c
+	$(CC) $(CFLAGS) kernel.c -o kernel.o
+
+mmap.o: mmap.c
+	$(CC) $(CFLAGS) mmap.c -o mmap.o
+
+kernel.bin: boot.o kernel.o mmap.o
+	$(LD) $(LDFLAGS) boot.o kernel.o mmap.o -o kernel.bin
+
+kernel.iso: kernel.bin grub.cfg
+	mkdir -p isodir/boot/grub
+	cp kernel.bin isodir/boot/kernel.bin
+	cp grub.cfg isodir/boot/grub/grub.cfg
+	grub-mkrescue -o kernel.iso isodir
+
+run: kernel.iso
+	qemu-system-x86_64 -cdrom kernel.iso
+
+clean:
+	rm -rf *.o kernel.bin kernel.iso isodir
