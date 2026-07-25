@@ -9,7 +9,7 @@ int cursor_y = 0;
 unsigned long __stack_chk_guard = 0x123456789ABCDEF0;
 
 
-void scroll() {
+void scroll() {n
   unsigned long *video_memory = (unsigned long *)0xb8000;
 
   for (int i = 0; i < 24 * 20; i++) {
