@@ -1,5 +1,7 @@
 #include "pmm.h"
+#include "multiboot.h"
 #include "types.h"
+
 
 static uint8_t *bitmap;
 static uint64_t max_blocks;
@@ -37,9 +39,35 @@ void pmm_init(uint64_t mboot_addr, uint64_t mem_size) {
   for (uint64_t i = 0; i < bitmap_size; i++) {
     bitmap[i] = 0xFF;    
   }
-  
-  
-}
 
+  struct multiboot_tag *tag = (struct multiboot_tag *)(mboot_addr + 8);
+
+  while (tag->type != 0) {
+    if (tag->type == 6) {
+      struct multiboot_tag_mmap *tag_mmap = (struct multiboot_tag_mmap *)tag;
+      uint8_t *base = (uint8_t *)tag + sizeof(struct multiboot_tag_mmap);
+      uint32_t offset = 0;
+
+      while (offset <
+             (tag_mmap->header.size - sizeof(struct multiboot_tag_mmap))) {
+        struct multiboot_mmap_entry *entry =
+            (struct multiboot_mmap_entry *)(base + offset);
+
+        if (entry->type == 1) {
+        }
+
+	offset += tag_mmap->entry_size;
+      }
+      
+
+
+
+    } else {
+      tag = (struct multiboot_tag *) ((uint64_t)tag + (tag->size + 7) & ~7 );
+    }
+
+    
+  }
+}
 
 

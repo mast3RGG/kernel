@@ -1,4 +1,4 @@
-#include "nmap.h"
+#include "mmmap.h"
 #include "multiboot.h"
 
 unsigned long detect_memory(unsigned long mboot_addr) {
