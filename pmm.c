@@ -54,7 +54,13 @@ void pmm_init(uint64_t mboot_addr, uint64_t mem_size) {
             (struct multiboot_mmap_entry *)(base + offset);
 
         if (entry->type == 1) {
-        }
+	  uint64_t start_block = entry->base_addr / 4096;
+	  uint64_t num_blocks = entry->length / 4096;
+	  
+	  for (uint64_t b = start_block; b < start_block + num_blocks; b++) {
+	    bitmap_reset(b);
+	  }
+	}
 
 	offset += tag_mmap->entry_size;
       }
@@ -62,12 +68,33 @@ void pmm_init(uint64_t mboot_addr, uint64_t mem_size) {
 
 
 
-    } else {
-      tag = (struct multiboot_tag *) ((uint64_t)tag + (tag->size + 7) & ~7 );
-    }
+    } 
+    tag = (struct multiboot_tag *) ((uint64_t)tag + (tag->size + 7) & ~7 );
+  }
 
-    
+  uint64_t reserved_blocks = (0x200000 + bitmap_size) / 4096;
+  for (uint64_t b = 0; b < reserved_blocks; b++) {
+      bitmap_set(b);
   }
 }
 
+
+uint64_t  *pmm_alloc_block(void) {
+  uint64_t *bitmap_64 = (uint64_t *)bitmap;
+  uint64_t max_block_64 = max_blocks / 64;
+
+  for (uint64_t i = 0; i < max_block_64; i++) {
+    if (bitmap_64[i] != 0xFFFFFFFFFFFFFFFFULL) {
+      uint64_t free_bits = ~bitmap_64[i];
+      uint64_t bit = __builtin_ctzll(free_bits);
+
+      uint64_t block = (i * 64) + bit;
+      bitmap_set(block);
+      return (uint64_t *)(block * 4096);
+    }
+  }
+
+  return 0;
+  
+}
 
