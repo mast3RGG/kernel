@@ -2,9 +2,9 @@ CC = gcc
 AS = nasm
 LD = ld
 
-CFLAGS = -m64 -c -ffreestanding -O2 -Wall -Wextra -mno-red-zone -fstack-protector-all
+CFLAGS = -m64 -c -ffreestanding -Wall -Wextra -mno-red-zone -fstack-protector-all
 ASFLAGS = -f elf64
-LDFLAGS = -m elf_x86_64 -n -T linker.ld
+LDFLAGS = -m elf_x86_64 --no-warn-rwx-segments -n -T linker.ld
 
 all: kernel.iso
 
@@ -17,8 +17,13 @@ kernel.o: kernel.c
 mmap.o: mmap.c
 	$(CC) $(CFLAGS) mmap.c -o mmap.o
 
-kernel.bin: boot.o kernel.o mmap.o
-	$(LD) $(LDFLAGS) boot.o kernel.o mmap.o -o kernel.bin
+pmm.o: pmm.c
+	$(CC) $(CFLAGS) pmm.c -o pmm.o
+mystdio.o: mystdio.c
+	$(CC) $(CFLAGS) mystdio.c -o mystdio.o
+
+kernel.bin: boot.o kernel.o mmap.o pmm.o mystdio.o
+	$(LD) $(LDFLAGS) boot.o kernel.o mmap.o pmm.o mystdio.o -o kernel.bin
 
 kernel.iso: kernel.bin grub.cfg
 	mkdir -p isodir/boot/grub

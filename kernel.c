@@ -2,220 +2,22 @@
 #include "mmap.h"
 #include "paging.h"
 #include "pmm.h"
-
-int cursor_x = 0;
-int cursor_y = 0;
-
+#include "mystdio.h"
 unsigned long __stack_chk_guard = 0x123456789ABCDEF0;
 
 
-void scroll() {
-  unsigned long *video_memory = (unsigned long *)0xb8000;
-
-  for (int i = 0; i < 24 * 20; i++) {
-    video_memory[i] = video_memory[i + 20];
-  }
-
-  for (int i = 24 * 20; i < 25 * 20; i++) {
-    video_memory[i]= 0x0720072007200720UL;
-  }
-
-  cursor_y = 24;
-  
-}
-
-void vga_print_char(char c) {
-  char *video_memory = (char *)0xb8000;
-
-  if (c == '\n') {
-    cursor_x = 0;
-    cursor_y++;
-
-    if (cursor_y >= 25) {
-      scroll();
-      
-    }
-    return;
-  }
-
-  if (c == '\b') {
-    if (cursor_x == 0 && cursor_y == 0) {
-      return;
-
-    }
-    
-    if (cursor_x > 0) {
-      cursor_x--;
-    } else if (cursor_y > 0) {
-      cursor_y--;
-      cursor_x = 79;
-    }
-
-    int index = (cursor_y * 80 + cursor_x) * 2;
-    video_memory[index] = ' ';
-    video_memory[index + 1] = 0x07;
-    return;
-    
-  }
-  
-  int index = (cursor_y * 80 + cursor_x) * 2;
-  video_memory[index] = c;
-  video_memory[index + 1] = 0x07;
-  cursor_x++;
-  
-  if (cursor_x == 80) {
-    cursor_x = 0;
-    cursor_y++;
-  }
-
-  if (cursor_y >= 25) {
-    scroll();
-  }
-}
 
 
-void clean_screen() {
-  unsigned long *video_memory = (unsigned long *)0xb8000;
 
-  for (int i = 0; i < 20 * 25; i++) {
-    video_memory[i] = 0x0720072007200720UL;
-  }
 
-  cursor_x = 0;
-  cursor_y = 0;
-}
 
-void vga_print_string(char *string) {
-  for (int i = 0; string[i] != '\0'; i++) {
-    vga_print_char(string[i]);
-  }
-  
-}
 
-void itoa(long num, char *buffer) {
-    int i = 0;
-    int is_negative = 0;
-    unsigned long u_num = num;
 
-    if (num == 0) {
-        buffer[i++] = '0';
-        buffer[i] = '\0';
-        return;
-    }
 
-    if (num < 0) {
-        is_negative = 1;
-        u_num = -num;
-    }
 
-    while (u_num > 0) {
-        buffer[i++] = (u_num % 10) + '0';
-        u_num /= 10;
-    }
 
-    if (is_negative) {
-        buffer[i++] = '-';
-    }
 
-    buffer[i] = '\0';
 
-    int start = 0;
-    int end = i - 1;
-    while (start < end) {
-        char tmp = buffer[start];
-        buffer[start] = buffer[end];
-        buffer[end] = tmp;
-        start++;
-        end--;
-    }
-}
-
-void xtoa(unsigned long num, char *buffer) {
-    int i = 0;
-
-    if (num == 0) {
-        buffer[i++] = '0';
-        buffer[i] = '\0';
-        return;
-    }
-
-    while (num > 0) {
-        int digit = num & 0xF;
-        
-        if (digit < 10) {
-            buffer[i++] = digit + '0';
-        } else {
-            buffer[i++] = (digit - 10) + 'a';
-        }
-        
-        num >>= 4;
-    }
-
-    buffer[i] = '\0';
-
-    int start = 0;
-    int end = i - 1;
-    while (start < end) {
-        char tmp = buffer[start];
-        buffer[start] = buffer[end];
-        buffer[end] = tmp;
-        start++;
-        end--;
-    }
-}
-
-void kprintf(const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-
-    char buf[32];
-
-    while (*format) {
-        if (*format == '%') {
-            format++;
-            switch (*format) {
-                case 'd': {
-                    long val = va_arg(args, long);
-                    itoa(val, buf);
-                    vga_print_string(buf);
-                    break;
-                }
-                case 'x': {
-                    unsigned long val = va_arg(args, unsigned long);
-                    xtoa(val, buf);
-                    vga_print_string(buf);
-                    break;
-                }
-                case 's': {
-                    char *str = va_arg(args, char*);
-                    if (str) {
-                        vga_print_string(str);
-                    } else {
-                        vga_print_string("(null)");
-                    }
-                    break;
-                }
-                case 'c': {
-                    char ch = (char)va_arg(args, int);
-                    char tmp[2] = {ch, '\0'};
-                    vga_print_string(tmp);
-                    break;
-                }
-                case '%': {
-                    char tmp[2] = {'%', '\0'};
-                    vga_print_string(tmp);
-                    break;
-                }
-            }
-        } else {
-            char tmp[2] = {*format, '\0'};
-            vga_print_string(tmp);
-        }
-        format++;
-    }
-
-    va_end(args);
-}
 
 void __stack_chk_fail(void) {
     clean_screen();
@@ -241,9 +43,7 @@ void trigger_page_fault(void) {
     (void)val;
 }
 
-
-void kernel_main(unsigned long mboot_addr) {
-  clean_screen();
+void test_memory(uint64_t mboot_addr) {
   unsigned long adresa_test = 0xB8000;
 
   kprintf("Adresa: 0x%x\n", adresa_test);
@@ -256,6 +56,50 @@ void kernel_main(unsigned long mboot_addr) {
   unsigned free_memory = detect_memory(mboot_addr);
   kprintf ("Free memory in ram is : %d" , free_memory / 1024 / 1024);
 
+  
+  
+}
+
+void test_pmm(void) {
+    kprintf("[PMM TEST] Starting PMM verification...\n");
+
+    uint64_t a = pmm_alloc_block();
+    uint64_t b = pmm_alloc_block();
+    uint64_t c = pmm_alloc_block();
+
+    kprintf("[PMM TEST] Block A: 0x%x\n", a);
+    kprintf("[PMM TEST] Block B: 0x%x\n", b);
+    kprintf("[PMM TEST] Block C: 0x%x\n", c);
+
+    if (b == a + 4096 && c == b + 4096) {
+        kprintf("[PMM TEST] SUCCESS: Sequential allocation (+4096 bytes).\n");
+    } else {
+        kprintf("[PMM TEST] FAIL: Allocation is not sequential!\n");
+    }
+
+    pmm_free_block(b);
+    kprintf("[PMM TEST] Freed Block B (0x%x)\n", b);
+
+    uint64_t d = pmm_alloc_block();
+    kprintf("[PMM TEST] Block D: 0x%x\n", d);
+
+    if (d == b) {
+        kprintf("[PMM TEST] SUCCESS: Reused freed memory correctly!\n");
+    } else {
+        kprintf("[PMM TEST] FAIL: Did not reuse Block B!\n");
+    }
+
+    pmm_free_block(a);
+    pmm_free_block(c);
+    pmm_free_block(d);
+
+    kprintf("[PMM TEST] Test completed successfully.\n");
+}
+
+void kernel_main(uint64_t mboot_addr) {
+  clean_screen();
+  pmm_init(mboot_addr);
+  test_pmm ();
   
   
   while (1) {

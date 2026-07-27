@@ -3,8 +3,9 @@
 #include "types.h"
 
 
-void pmm_init(uint64_t mboot_addr, uint64_t mem_size);
-uint64_t *pmm_alloc_block(void);
-void pmm_free_block (void *);
+void pmm_init(uint64_t mboot_addr);
+uint64_t pmm_alloc_block(void);
+void pmm_free_block(uint64_t addr);
+
 
 #endif
